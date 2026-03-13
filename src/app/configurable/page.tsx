@@ -19,7 +19,7 @@ export default function ConfigurableHome() {
   const {address, isConnected} = useAccount();
   const appState = useAppState();
   const [apiLog, setApiLog] = useState<ApiCall[]>([]);
-  const {config} = useSandboxConfig();
+  const {config, setConfig} = useSandboxConfig();
   const creditBalance = useConfigurableCreditBalance({
     walletAddress: address,
     creditSeed: config.creditSeed,
@@ -38,7 +38,7 @@ export default function ConfigurableHome() {
     <div className="min-h-screen bg-zinc-950">
       <Header />
       <main className="max-w-6xl mx-auto px-4 py-8">
-        <ConfigPanel />
+        <ConfigPanel config={config} setConfig={setConfig} />
 
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-white mb-1">

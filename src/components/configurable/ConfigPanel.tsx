@@ -1,6 +1,6 @@
 'use client';
 
-import {SandboxConfig, useSandboxConfig} from '@/hooks/useSandboxConfig';
+import {SandboxConfig} from '@/hooks/useSandboxConfig';
 
 function TextInput({
   label,
@@ -29,11 +29,14 @@ function TextInput({
   );
 }
 
-export function ConfigPanel() {
-  const {config, setConfig} = useSandboxConfig();
+interface ConfigPanelProps {
+  config: SandboxConfig;
+  setConfig: (update: Partial<SandboxConfig>) => void;
+}
 
+export function ConfigPanel({config, setConfig}: ConfigPanelProps) {
   function update<K extends keyof SandboxConfig>(key: K, value: SandboxConfig[K]) {
-    setConfig({[key]: value} as Partial<SandboxConfig>);
+    setConfig({[key]: value});
   }
 
   return (
