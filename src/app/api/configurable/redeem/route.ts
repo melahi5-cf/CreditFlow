@@ -12,8 +12,7 @@ const DEFAULT_API_KEY = process.env.COINFLOW_API_KEY ?? '';
 const DEFAULT_REDEEM_DESTINATION_WALLET =
   process.env.COINFLOW_REDEEM_DESTINATION_WALLET ?? '';
 
-interface AuthBody {
-  action: 'auth';
+interface AuthBodyBase {
   amountCents: number;
   wallet: string;
   blockchain: string;
@@ -23,7 +22,11 @@ interface AuthBody {
   redeemDestinationWallet?: string;
 }
 
-interface ExecuteBody extends AuthBody {
+interface AuthBody extends AuthBodyBase {
+  action: 'auth';
+}
+
+interface ExecuteBody extends AuthBodyBase {
   action: 'execute';
   signedMessage: string;
   validBefore: string;
