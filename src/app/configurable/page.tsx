@@ -5,18 +5,26 @@ import {useAccount} from 'wagmi';
 import {ConnectButton} from '@rainbow-me/rainbowkit';
 import {Header} from '@/components/Header';
 import {BalanceCard} from '@/components/BalanceCard';
-import {AddCardStep} from '@/components/AddCardStep';
-import {TopUpStep} from '@/components/TopUpStep';
-import {UseServiceStep} from '@/components/UseServiceStep';
-import {useCreditBalance, LogEntry} from '@/hooks/useCreditBalance';
+import {LogEntry} from '@/hooks/useCreditBalance';
 import {useAppState} from '@/hooks/useAppState';
 import {ApiCall} from '@/types';
+import {useSandboxConfig} from '@/hooks/useSandboxConfig';
+import {ConfigPanel} from '@/components/configurable/ConfigPanel';
+import {AddCardStepConfigurable} from '@/components/configurable/AddCardStepConfigurable';
+import {TopUpStepConfigurable} from '@/components/configurable/TopUpStepConfigurable';
+import {UseServiceStepConfigurable} from '@/components/configurable/UseServiceStepConfigurable';
+import {useConfigurableCreditBalance} from '@/hooks/useConfigurableCreditBalance';
 
-export default function Home() {
+export default function ConfigurableHome() {
   const {address, isConnected} = useAccount();
-  const creditBalance = useCreditBalance({walletAddress: address});
   const appState = useAppState();
   const [apiLog, setApiLog] = useState<ApiCall[]>([]);
+  const {config} = useSandboxConfig();
+  const creditBalance = useConfigurableCreditBalance({
+    walletAddress: address,
+    creditSeed: config.creditSeed,
+    creditsContractAddress: config.creditsContractAddress as `0x${string}`,
+  });
 
   function onApiCall(call: Omit<ApiCall, 'id'>) {
     setApiLog(prev => [{...call, id: `${Date.now()}-${Math.random()}`}, ...prev]);
@@ -30,25 +38,18 @@ export default function Home() {
     <div className="min-h-screen bg-zinc-950">
       <Header />
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Page title */}
-        <div className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold text-white mb-1">
-              Credits Dashboard
-            </h1>
-            <p className="text-zinc-400 text-sm">
-              Manage your EVM credits on Base Sepolia
-            </p>
-          </div>
-          <a
-            href="/configurable"
-            className="inline-flex items-center justify-center rounded-lg border border-indigo-600/70 bg-indigo-950/40 px-3 py-1.5 text-xs font-medium text-indigo-200 hover:bg-indigo-900/60 transition-colors"
-          >
-            Try with your own sandbox merchant →
-          </a>
+        <ConfigPanel />
+
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-white mb-1">
+            Configurable Credits Dashboard
+          </h1>
+          <p className="text-zinc-400 text-sm">
+            Plug in your own Coinflow sandbox merchant ID, API key, and destination
+            wallet to see the full credits lifecycle with your account.
+          </p>
         </div>
 
-        {/* Balance card — locked to Base Sepolia */}
         <BalanceCard
           balance={creditBalance.balance}
           isLoadingBalance={creditBalance.isLoadingBalance}
@@ -60,32 +61,39 @@ export default function Home() {
           walletAddress={address}
         />
 
-        {/* Step flow */}
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <AddCardStep
+          <AddCardStepConfigurable
             chain={appState.chain}
             walletAddress={address}
+            merchantId={config.merchantId}
+            env={config.env}
             onSuccess={appState.onCardAdded}
             cardPaymentId={appState.cardPaymentId}
             onRemove={appState.clearCard}
           />
-          <TopUpStep
+          <TopUpStepConfigurable
             chain={appState.chain}
             walletAddress={address}
             cardPaymentId={appState.cardPaymentId}
+            merchantId={config.merchantId}
+            apiKey={config.apiKey}
+            env={config.env}
             onSuccess={(amount, label) => creditBalance.addCredits({amount, label})}
             onApiCall={onApiCall}
             isEnabled={!!appState.cardPaymentId}
           />
-          <UseServiceStep
+          <UseServiceStepConfigurable
             balance={creditBalance.balance}
+            merchantId={config.merchantId}
+            apiKey={config.apiKey}
+            env={config.env}
+            redeemDestinationWallet={config.redeemDestinationWallet}
             onUse={(amount, label) => creditBalance.spendCredits({amount, label})}
             onApiCall={onApiCall}
             isEnabled={creditBalance.balance > 0}
           />
         </div>
 
-        {/* Logs row */}
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
           <TransactionLog entries={creditBalance.log} />
           <ApiCallLog calls={apiLog} />
@@ -101,61 +109,30 @@ function LandingView() {
       <Header />
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-20">
         <div className="text-center max-w-xl">
-          {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-indigo-950 border border-indigo-800 rounded-full px-4 py-1.5 text-indigo-300 text-xs font-medium mb-8">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block" />
-            Powered by Coinflow Sandbox
+            Configurable Coinflow Sandbox Demo
           </div>
 
           <h1 className="text-4xl font-bold text-white mb-4 tracking-tight">
-            EVM Credits Demo
+            Bring Your Own Merchant
           </h1>
           <p className="text-zinc-400 text-lg mb-3 leading-relaxed">
-            See the full credits lifecycle in action — add a card via zero
-            authorization, top up on Base Sepolia, and redeem when you use
-            the service.
+            Connect a wallet, enter your Coinflow sandbox merchant credentials, and
+            see the full EVM credits lifecycle using your own account.
           </p>
-
-          {/* Flow steps */}
-          <div className="flex items-center justify-center gap-3 mb-10 text-sm text-zinc-500">
-            <FlowChip label="1. Zero Auth Card" color="indigo" />
-            <Arrow />
-            <FlowChip label="2. Top Up Credits" color="violet" />
-            <Arrow />
-            <FlowChip label="3. Redeem & Use" color="purple" />
-          </div>
 
           <div className="flex justify-center">
             <ConnectButton label="Connect Wallet to Start" />
           </div>
 
           <p className="text-zinc-600 text-xs mt-6">
-            Base Sepolia testnet · Sandbox only · No real funds
+            Base Sepolia testnet · Sandbox only · For demonstration purposes
           </p>
         </div>
       </div>
     </div>
   );
-}
-
-function FlowChip({label, color}: {label: string; color: string}) {
-  const colorMap: Record<string, string> = {
-    indigo: 'bg-indigo-950 border-indigo-800 text-indigo-300',
-    violet: 'bg-violet-950 border-violet-800 text-violet-300',
-    purple: 'bg-purple-950 border-purple-800 text-purple-300',
-  };
-
-  return (
-    <span
-      className={`border rounded-md px-3 py-1 text-xs font-medium ${colorMap[color]}`}
-    >
-      {label}
-    </span>
-  );
-}
-
-function Arrow() {
-  return <span className="text-zinc-700 text-xs">→</span>;
 }
 
 function TransactionLog({entries}: {entries: LogEntry[]}) {
@@ -209,12 +186,12 @@ function ApiCallLog({calls}: {calls: ApiCall[]}) {
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
       <h3 className="text-sm font-medium text-zinc-300 mb-1">API Call Log</h3>
       <p className="text-zinc-600 text-xs mb-4">
-        Coinflow API calls made during this session
+        Coinflow API calls made during this session (using your config)
       </p>
 
       {calls.length === 0 ? (
         <p className="text-zinc-600 text-xs py-4 text-center">
-          No API calls yet — try a top-up
+          No API calls yet — try a top-up or redeem
         </p>
       ) : (
         <div className="space-y-2">
@@ -227,7 +204,6 @@ function ApiCallLog({calls}: {calls: ApiCall[]}) {
                 key={call.id}
                 className="border border-zinc-800 rounded-lg overflow-hidden"
               >
-                {/* Row */}
                 <button
                   onClick={() => setExpanded(isOpen ? null : call.id)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-zinc-800/50 transition-colors"
@@ -253,7 +229,6 @@ function ApiCallLog({calls}: {calls: ApiCall[]}) {
                   </span>
                 </button>
 
-                {/* Expanded detail */}
                 {isOpen && (
                   <div className="border-t border-zinc-800 px-3 py-3 space-y-3 bg-zinc-950">
                     <div>
@@ -288,3 +263,4 @@ function ApiCallLog({calls}: {calls: ApiCall[]}) {
     </div>
   );
 }
+

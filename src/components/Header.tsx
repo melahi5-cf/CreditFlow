@@ -1,7 +1,9 @@
 'use client';
 
+import Image from 'next/image';
 import {ConnectButton} from '@rainbow-me/rainbowkit';
 import {useAccount} from 'wagmi';
+import coinflowLogo from '@/public/coinflow-logo.png';
 
 export function Header() {
   const {isConnected} = useAccount();
@@ -11,26 +13,13 @@ export function Header() {
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle cx="8" cy="8" r="3" fill="white" />
-              <path
-                d="M8 1v2M8 13v2M1 8h2M13 8h2"
-                stroke="white"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
+          <div className="h-7 flex items-center">
+            <Image src={coinflowLogo} alt="Coinflow" priority className="h-6 w-auto" />
           </div>
-          <span className="text-white font-semibold text-sm">CreditFlow</span>
           {isConnected && (
-            <span className="text-zinc-600 text-xs hidden sm:inline">Demo</span>
+            <span className="text-zinc-600 text-xs hidden sm:inline ml-1">
+              Demo
+            </span>
           )}
         </div>
 
@@ -51,3 +40,4 @@ export function Header() {
     </header>
   );
 }
+
