@@ -1,7 +1,7 @@
 'use client';
 
 import {useState} from 'react';
-import {CoinflowPurchase} from '@coinflowlabs/react';
+import {CoinflowPurchase, SettlementType} from '@coinflowlabs/react';
 import {useEvmWallet} from '@/hooks/useEvmWallet';
 
 type Chain = 'polygon' | 'base';
@@ -138,8 +138,8 @@ function CoinflowIframe({
           merchantId={MERCHANT_ID}
           env={COINFLOW_ENV}
           blockchain={chain}
-          settlementType="Credits"
-          zeroAuthorization
+          settlementType={SettlementType.Credits}
+          isZeroAuthorization
           zeroAuthorizationConfig={{disableSavedPaymentMethods: true}}
           onSuccess={onSuccess}
           loaderBackground="#18181b"
