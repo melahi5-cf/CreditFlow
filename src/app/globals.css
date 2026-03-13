@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  background-color: #09090b;
+  color: #fafafa;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Coinflow iframe container */
+.coinflow-iframe-container {
+  height: 600px;
+  min-height: 500px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #18181b;
+}
+::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+/* Rainbow-kit overrides */
+[data-rk] {
+  --rk-colors-accentColor: #6366f1 !important;
+  --rk-colors-accentColorForeground: #ffffff !important;
+  --rk-colors-modalBackground: #18181b !important;
+  --rk-colors-modalBorder: #27272a !important;
+  --rk-colors-modalText: #fafafa !important;
+  --rk-colors-modalTextDim: #a1a1aa !important;
+  --rk-colors-actionButtonBorder: #27272a !important;
+  --rk-colors-actionButtonBorderMobile: #27272a !important;
+  --rk-colors-actionButtonSecondaryBackground: #27272a !important;
+  --rk-colors-closeButton: #a1a1aa !important;
+  --rk-colors-closeButtonBackground: #27272a !important;
+  --rk-colors-connectButtonBackground: #18181b !important;
+  --rk-colors-connectButtonBackgroundError: #450a0a !important;
+  --rk-colors-connectButtonInnerBackground: #27272a !important;
+  --rk-colors-connectButtonText: #fafafa !important;
+  --rk-colors-connectButtonTextError: #fca5a5 !important;
+  --rk-colors-connectionIndicator: #4ade80 !important;
+  --rk-colors-downloadBottomCardBackground: #18181b !important;
+  --rk-colors-downloadTopCardBackground: #27272a !important;
+  --rk-colors-error: #f87171 !important;
+  --rk-colors-generalBorder: #27272a !important;
+  --rk-colors-generalBorderDim: #3f3f46 !important;
+  --rk-colors-menuItemBackground: #27272a !important;
+  --rk-colors-profileAction: #27272a !important;
+  --rk-colors-profileActionHover: #3f3f46 !important;
+  --rk-colors-profileForeground: #18181b !important;
+  --rk-colors-selectedOptionBorder: #6366f1 !important;
+}
