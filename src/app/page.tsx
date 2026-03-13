@@ -59,6 +59,7 @@ export default function Home() {
             walletAddress={address}
             onSuccess={appState.onCardAdded}
             cardPaymentId={appState.cardPaymentId}
+            onRemove={appState.clearCard}
           />
           <TopUpStep
             chain={appState.chain}

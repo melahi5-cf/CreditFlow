@@ -9,6 +9,7 @@ interface AppState {
   setChain: (chain: Chain) => void;
   cardPaymentId: string | null;
   onCardAdded: (paymentId: string) => void;
+  clearCard: () => void;
 }
 
 const STORAGE_KEY = 'creditflow_demo_payment_id';
@@ -29,5 +30,12 @@ export function useAppState(): AppState {
     localStorage.setItem(STORAGE_KEY, paymentId);
   }, []);
 
-  return {chain, setChain, cardPaymentId, onCardAdded};
+  const clearCard = useCallback(() => {
+    setCardPaymentId(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, []);
+
+  return {chain, setChain, cardPaymentId, onCardAdded, clearCard};
 }

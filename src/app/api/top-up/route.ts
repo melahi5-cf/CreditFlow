@@ -13,6 +13,17 @@ interface TopUpRequest {
   blockchain: 'polygon' | 'base';
 }
 
+function getClientIp(req: NextRequest): string | undefined {
+  // Prefer explicit forwarded headers; fall back to CF header if present
+  const xff = req.headers.get('x-forwarded-for');
+  if (xff) return xff.split(',')[0]?.trim();
+  return (
+    req.headers.get('x-real-ip') ??
+    req.headers.get('cf-connecting-ip') ??
+    undefined
+  );
+}
+
 export async function POST(req: NextRequest) {
   const merchantId = process.env.NEXT_PUBLIC_COINFLOW_MERCHANT_ID;
   const apiKey = process.env.COINFLOW_API_KEY;
@@ -42,6 +53,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const coinflowUrl = `${COINFLOW_BASE_URL}/api/checkout/card-on-file`;
+    const deviceId = req.headers.get('x-device-id') ?? undefined;
+    const userAgent = req.headers.get('user-agent') ?? undefined;
+    const clientIp = getClientIp(req);
 
     if (process.env.NODE_ENV !== 'production') {
       // Basic debug logging for Coinflow top-up calls
@@ -53,6 +67,8 @@ export async function POST(req: NextRequest) {
         amountCents,
         wallet,
         blockchain,
+        deviceIdPresent: Boolean(deviceId),
+        clientIpPresent: Boolean(clientIp),
       });
     }
 
@@ -66,13 +82,17 @@ export async function POST(req: NextRequest) {
           currency: 'USD',
         },
         settlementType: 'Credits',
+        // Ensure the purchase pipeline runs (authOnly would authorize but not mint)
+        authOnly: false,
       },
       {
         headers: {
           Authorization: apiKey,
-          'x-coinflow-auth-user-id': wallet,
           'x-coinflow-auth-wallet': wallet,
           'x-coinflow-auth-blockchain': blockchain,
+          ...(deviceId ? {'x-device-id': deviceId} : {}),
+          ...(clientIp ? {'x-coinflow-client-ip': clientIp} : {}),
+          ...(userAgent ? {'user-agent': userAgent} : {}),
           'Content-Type': 'application/json',
         },
       }

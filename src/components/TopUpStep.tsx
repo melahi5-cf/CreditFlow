@@ -40,6 +40,19 @@ export function TopUpStep({chain, walletAddress, cardPaymentId, onSuccess, onApi
   const [error, setError] = useState<string | null>(null);
   const wallet = useEvmWallet();
 
+  function getDeviceId(): string {
+    if (typeof window === 'undefined') return 'server';
+    const key = 'coinflow_demo_device_id';
+    const existing = window.localStorage.getItem(key);
+    if (existing) return existing;
+    const id =
+      (typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random()}`) as string;
+    window.localStorage.setItem(key, id);
+    return id;
+  }
+
   async function handleQuickTopUp() {
     if (!cardPaymentId || !walletAddress) return;
     setMode('quick');
@@ -54,12 +67,21 @@ export function TopUpStep({chain, walletAddress, cardPaymentId, onSuccess, onApi
     };
 
     try {
-      const response = await axios.post('/api/top-up', {
-        paymentId: cardPaymentId,
-        amountCents: selectedOption.dollars * 100,
-        wallet: walletAddress,
-        blockchain: chain,
-      });
+      const deviceId = getDeviceId();
+      const response = await axios.post(
+        '/api/top-up',
+        {
+          paymentId: cardPaymentId,
+          amountCents: selectedOption.dollars * 100,
+          wallet: walletAddress,
+          blockchain: chain,
+        },
+        {
+          headers: {
+            'x-device-id': deviceId,
+          },
+        }
+      );
       onApiCall?.({
         timestamp: new Date(),
         method: 'POST',

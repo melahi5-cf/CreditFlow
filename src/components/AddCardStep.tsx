@@ -13,6 +13,7 @@ interface AddCardStepProps {
   walletAddress: string;
   onSuccess: (paymentId: string) => void;
   cardPaymentId: string | null;
+  onRemove?: () => void;
 }
 
 const COINFLOW_ENV = (process.env.NEXT_PUBLIC_COINFLOW_ENV ?? 'sandbox') as
@@ -22,7 +23,13 @@ const COINFLOW_ENV = (process.env.NEXT_PUBLIC_COINFLOW_ENV ?? 'sandbox') as
 
 const MERCHANT_ID = process.env.NEXT_PUBLIC_COINFLOW_MERCHANT_ID ?? '';
 
-export function AddCardStep({chain, walletAddress, onSuccess, cardPaymentId}: AddCardStepProps) {
+export function AddCardStep({
+  chain,
+  walletAddress,
+  onSuccess,
+  cardPaymentId,
+  onRemove,
+}: AddCardStepProps) {
   const [isOpen, setIsOpen] = useState(false);
   const wallet = useEvmWallet();
 
@@ -62,20 +69,11 @@ export function AddCardStep({chain, walletAddress, onSuccess, cardPaymentId}: Ad
           </div>
         </div>
         <button
-          onClick={() => setIsOpen(true)}
-          className="mt-3 w-full text-xs text-zinc-500 hover:text-zinc-300 transition-colors py-1.5"
+          onClick={() => onRemove?.()}
+          className="mt-3 w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium rounded-lg px-4 py-2 transition-colors"
         >
-          Replace card
+          Remove card on file
         </button>
-        {isOpen && (
-          <CoinflowIframe
-            wallet={wallet}
-            chain={chain}
-            walletAddress={walletAddress}
-            onSuccess={handleSuccess}
-            onCancel={() => setIsOpen(false)}
-          />
-        )}
       </StepCard>
     );
   }
@@ -140,6 +138,8 @@ function CoinflowIframe({
           merchantId={MERCHANT_ID}
           env={COINFLOW_ENV}
           blockchain={chain}
+          settlementType="Credits"
+          zeroAuthorization
           zeroAuthorizationConfig={{disableSavedPaymentMethods: true}}
           onSuccess={onSuccess}
           loaderBackground="#18181b"
