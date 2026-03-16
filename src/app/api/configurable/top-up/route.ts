@@ -32,14 +32,18 @@ export async function POST(req: NextRequest) {
     merchantId: overrideMerchantId,
     apiKey: overrideApiKey,
     env: overrideEnv,
+    authentication3DS,
+    chargebackProtectionData,
   } = body as {
     paymentId?: string;
     amountCents?: number;
     wallet?: string;
-    blockchain?: 'polygon' | 'base';
+    blockchain?: 'base';
     merchantId?: string;
     apiKey?: string;
     env?: 'sandbox' | 'staging' | 'prod';
+    authentication3DS?: Record<string, unknown>;
+    chargebackProtectionData?: Record<string, unknown>[];
   };
 
   const merchantId = overrideMerchantId || DEFAULT_MERCHANT_ID;
@@ -80,6 +84,8 @@ export async function POST(req: NextRequest) {
         },
         settlementType: 'Credits',
         authOnly: false,
+        ...(authentication3DS ? {authentication3DS} : {}),
+        ...(chargebackProtectionData ? {chargebackProtectionData} : {}),
       },
       {
         headers: {
@@ -98,8 +104,9 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (axios.isAxiosError(err)) {
       const status = err.response?.status ?? 500;
+      // Forward the full Coinflow response body so the client can inspect 412 challenge data
       const data = err.response?.data ?? err.message;
-      return NextResponse.json({error: data}, {status});
+      return NextResponse.json(data, {status});
     }
 
     return NextResponse.json(
@@ -108,4 +115,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

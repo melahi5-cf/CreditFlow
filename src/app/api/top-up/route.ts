@@ -10,7 +10,9 @@ interface TopUpRequest {
   paymentId: string;
   amountCents: number;
   wallet: string;
-  blockchain: 'polygon' | 'base';
+  blockchain: 'base';
+  authentication3DS?: Record<string, unknown>;
+  chargebackProtectionData?: Record<string, unknown>[];
 }
 
 function getClientIp(req: NextRequest): string | undefined {
@@ -42,7 +44,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({error: 'Invalid request body'}, {status: 400});
   }
 
-  const {paymentId, amountCents, wallet, blockchain} = body;
+  const {paymentId, amountCents, wallet, blockchain, authentication3DS, chargebackProtectionData} = body;
 
   if (!paymentId || !amountCents || !wallet || !blockchain) {
     return NextResponse.json(
@@ -67,6 +69,8 @@ export async function POST(req: NextRequest) {
         amountCents,
         wallet,
         blockchain,
+        has3DS: Boolean(authentication3DS),
+        hasChargebackData: Boolean(chargebackProtectionData),
         deviceIdPresent: Boolean(deviceId),
         clientIpPresent: Boolean(clientIp),
       });
@@ -82,8 +86,9 @@ export async function POST(req: NextRequest) {
           currency: 'USD',
         },
         settlementType: 'Credits',
-        // Ensure the purchase pipeline runs (authOnly would authorize but not mint)
         authOnly: false,
+        ...(authentication3DS ? {authentication3DS} : {}),
+        ...(chargebackProtectionData ? {chargebackProtectionData} : {}),
       },
       {
         headers: {
@@ -113,18 +118,18 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (axios.isAxiosError(err)) {
       const status = err.response?.status ?? 500;
-      const message = err.response?.data?.message ?? err.message;
+      const responseData = err.response?.data;
 
       if (process.env.NODE_ENV !== 'production') {
         // eslint-disable-next-line no-console
         console.error('[Coinflow][TopUp][Error]', {
           status,
-          message,
-          data: err.response?.data,
+          data: responseData,
         });
       }
 
-      return NextResponse.json({error: message}, {status});
+      // Forward the full Coinflow response body so the client can inspect 412 challenge data
+      return NextResponse.json(responseData ?? {error: err.message}, {status});
     }
     return NextResponse.json({error: 'Unexpected error'}, {status: 500});
   }

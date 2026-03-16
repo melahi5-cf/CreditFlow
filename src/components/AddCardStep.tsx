@@ -4,7 +4,7 @@ import {useState} from 'react';
 import {CoinflowPurchase, SettlementType} from '@coinflowlabs/react';
 import {useEvmWallet} from '@/hooks/useEvmWallet';
 
-type Chain = 'polygon' | 'base';
+type Chain = 'base';
 
 type OnSuccessArgs = {paymentId: string; hash?: string} | string;
 

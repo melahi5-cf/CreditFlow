@@ -1,12 +1,12 @@
 'use client';
 
-import {useState} from 'react';
+import {useCallback, useEffect, useState} from 'react';
 import {CoinflowPurchase, SettlementType, Currency} from '@coinflowlabs/react';
 import {useEvmWallet} from '@/hooks/useEvmWallet';
 import {ApiCall} from '@/types';
 import axios from 'axios';
 
-type Chain = 'polygon' | 'base';
+type Chain = 'base';
 
 interface TopUpStepProps {
   chain: Chain;
@@ -17,13 +17,29 @@ interface TopUpStepProps {
   isEnabled: boolean;
 }
 
-type TopUpMode = 'idle' | 'quick' | 'checkout';
+type TopUpMode = 'idle' | 'quick' | 'checkout' | 'challenge';
+
+interface ChallengeInfo {
+  url: string;
+  creq: string;
+  transactionId: string;
+}
 
 const QUICK_TOP_UP_OPTIONS = [
   {label: '$5', dollars: 5, credits: 500},
   {label: '$10', dollars: 10, credits: 1000},
   {label: '$25', dollars: 25, credits: 2500},
   {label: '$50', dollars: 50, credits: 5000},
+];
+
+// Default chargeback protection data for credits top-ups
+const CHARGEBACK_PROTECTION_DATA = [
+  {
+    productName: 'Credits Top-Up',
+    productType: 'topUp',
+    quantity: 1,
+    rawProductData: {type: 'credits'},
+  },
 ];
 
 const COINFLOW_ENV = (process.env.NEXT_PUBLIC_COINFLOW_ENV ?? 'sandbox') as
@@ -33,32 +49,48 @@ const COINFLOW_ENV = (process.env.NEXT_PUBLIC_COINFLOW_ENV ?? 'sandbox') as
 
 const MERCHANT_ID = process.env.NEXT_PUBLIC_COINFLOW_MERCHANT_ID ?? '';
 
+function getDeviceId(): string {
+  if (typeof window === 'undefined') return 'server';
+  const key = 'coinflow_demo_device_id';
+  const existing = window.localStorage.getItem(key);
+  if (existing) return existing;
+  const id = (
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random()}`
+  ) as string;
+  window.localStorage.setItem(key, id);
+  return id;
+}
+
+function getAuthentication3DS(transactionId?: string) {
+  if (transactionId) {
+    return {transactionId};
+  }
+  if (typeof window === 'undefined') return undefined;
+  return {
+    colorDepth: screen.colorDepth,
+    screenHeight: screen.height,
+    screenWidth: screen.width,
+    timeZone: new Date().getTimezoneOffset(),
+  };
+}
+
 export function TopUpStep({chain, walletAddress, cardPaymentId, onSuccess, onApiCall, isEnabled}: TopUpStepProps) {
   const [mode, setMode] = useState<TopUpMode>('idle');
   const [selectedOption, setSelectedOption] = useState(QUICK_TOP_UP_OPTIONS[1]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [challengeInfo, setChallengeInfo] = useState<ChallengeInfo | null>(null);
   const wallet = useEvmWallet();
 
-  function getDeviceId(): string {
-    if (typeof window === 'undefined') return 'server';
-    const key = 'coinflow_demo_device_id';
-    const existing = window.localStorage.getItem(key);
-    if (existing) return existing;
-    const id =
-      (typeof crypto !== 'undefined' && 'randomUUID' in crypto
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random()}`) as string;
-    window.localStorage.setItem(key, id);
-    return id;
-  }
-
-  async function handleQuickTopUp() {
+  const doTopUpRequest = useCallback(async (transactionId?: string) => {
     if (!cardPaymentId || !walletAddress) return;
-    setMode('quick');
+
     setIsLoading(true);
     setError(null);
 
+    const authentication3DS = getAuthentication3DS(transactionId);
     const payload = {
       paymentId: `${cardPaymentId.slice(0, 8)}…`,
       amountCents: selectedOption.dollars * 100,
@@ -75,12 +107,10 @@ export function TopUpStep({chain, walletAddress, cardPaymentId, onSuccess, onApi
           amountCents: selectedOption.dollars * 100,
           wallet: walletAddress,
           blockchain: chain,
+          authentication3DS,
+          chargebackProtectionData: CHARGEBACK_PROTECTION_DATA,
         },
-        {
-          headers: {
-            'x-device-id': deviceId,
-          },
-        }
+        {headers: {'x-device-id': deviceId}}
       );
       onApiCall?.({
         timestamp: new Date(),
@@ -90,39 +120,54 @@ export function TopUpStep({chain, walletAddress, cardPaymentId, onSuccess, onApi
         status: response.status,
         response: JSON.stringify(response.data, null, 2),
       });
+      setChallengeInfo(null);
       onSuccess(selectedOption.credits, `Quick top-up ${selectedOption.label} via card on file`);
       setMode('idle');
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status ?? 'error';
-        const errorData = err.response?.data;
+        const responseData = err.response?.data;
         onApiCall?.({
           timestamp: new Date(),
           method: 'POST',
           endpoint: 'POST /api/top-up → Coinflow /api/checkout/card-on-file',
           payload,
           status,
-          response: JSON.stringify(errorData ?? err.message, null, 2),
+          response: JSON.stringify(responseData ?? err.message, null, 2),
         });
+
+        // 412: 3DS challenge required — show inline challenge modal then retry
+        if (
+          status === 412 &&
+          responseData &&
+          typeof responseData === 'object' &&
+          'transactionId' in responseData &&
+          'creq' in responseData &&
+          'url' in responseData
+        ) {
+          setChallengeInfo({
+            transactionId: responseData.transactionId as string,
+            creq: responseData.creq as string,
+            url: responseData.url as string,
+          });
+          setMode('challenge');
+          return;
+        }
+
         const details =
-          typeof errorData === 'object' && errorData
-            ? // common Coinflow error shape: { message, details }
-              (errorData as any).details ?? (errorData as any).message
+          typeof responseData === 'object' && responseData
+            ? (responseData as any).details ?? (responseData as any).message
             : undefined;
+        const detailsStr = typeof details === 'string' ? details.toLowerCase() : '';
 
-        const isThreeDsRequired =
-          status === 400 &&
-          typeof details === 'string' &&
-          details.toLowerCase().includes('3ds');
-
-        if (status === 401 || status === 403 || isThreeDsRequired) {
-          // Card-on-file path not usable (not enabled or 3DS required) — fall back to checkout iframe
+        if (status === 401 || status === 403) {
+          // Card-on-file not enabled for this merchant — fall back to checkout iframe
           setError(null);
           setMode('checkout');
         } else {
           setError(
-            (typeof errorData === 'object' && (errorData as any).error) ||
-              (typeof errorData === 'object' && (errorData as any).message) ||
+            (typeof responseData === 'object' && (responseData as any).error) ||
+              detailsStr ||
               err.message
           );
           setMode('idle');
@@ -134,6 +179,24 @@ export function TopUpStep({chain, walletAddress, cardPaymentId, onSuccess, onApi
     } finally {
       setIsLoading(false);
     }
+  }, [cardPaymentId, walletAddress, selectedOption, chain, onApiCall, onSuccess]);
+
+  // Listen for 3DS challenge completion then retry with the transactionId
+  useEffect(() => {
+    if (mode !== 'challenge' || !challengeInfo) return;
+
+    function handleChallengeMessage(event: MessageEvent) {
+      if (event.data !== 'challenge_success') return;
+      doTopUpRequest(challengeInfo!.transactionId);
+    }
+
+    window.addEventListener('message', handleChallengeMessage);
+    return () => window.removeEventListener('message', handleChallengeMessage);
+  }, [mode, challengeInfo, doTopUpRequest]);
+
+  async function handleQuickTopUp() {
+    setMode('quick');
+    await doTopUpRequest();
   }
 
   function handleCheckoutSuccess() {
@@ -222,6 +285,29 @@ export function TopUpStep({chain, walletAddress, cardPaymentId, onSuccess, onApi
             <div className="flex items-center justify-center gap-2 py-4 text-zinc-400 text-sm animate-fade-in">
               <Spinner />
               Processing card on file…
+            </div>
+          )}
+
+          {mode === 'challenge' && challengeInfo && (
+            <div className="mt-3 animate-fade-in">
+              <p className="text-zinc-400 text-xs mb-2 text-center">
+                Your bank requires additional verification. Complete the challenge below.
+              </p>
+              <div className="coinflow-iframe-container">
+                <iframe
+                  className="w-full h-full border-0"
+                  srcDoc={`<html><head><title>3DS Challenge</title></head><body onload="document.challenge.submit()"><form method="post" name="challenge" action="${challengeInfo.url}"><input name="creq" value="${challengeInfo.creq}" /></form></body></html>`}
+                />
+              </div>
+              <button
+                onClick={() => {
+                  setChallengeInfo(null);
+                  setMode('idle');
+                }}
+                className="mt-2 w-full text-xs text-zinc-500 hover:text-zinc-400 transition-colors py-1.5"
+              >
+                Cancel
+              </button>
             </div>
           )}
 
