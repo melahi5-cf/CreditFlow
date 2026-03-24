@@ -1,6 +1,15 @@
-// Base Sepolia credits contract (sandbox / testnet)
-export const CREDITS_CONTRACT_ADDRESS =
-  '0xbF720eF3c2BC8AA59a282782da26b56918eB3D7a' as const;
+// Credits contract addresses per chain (sandbox / testnet)
+export const CREDITS_CONTRACT_ADDRESSES: Record<string, `0x${string}`> = {
+  base: '0xbF720eF3c2BC8AA59a282782da26b56918eB3D7a',
+  tempo: '0x02af2603e2A7d891684854CBC4aaeBa310bf7C1c',
+} as const;
+
+export function getCreditsContractAddress(chain: string): `0x${string}` {
+  return CREDITS_CONTRACT_ADDRESSES[chain] ?? CREDITS_CONTRACT_ADDRESSES['base'];
+}
+
+// Keep backward-compatible export (Base Sepolia)
+export const CREDITS_CONTRACT_ADDRESS = CREDITS_CONTRACT_ADDRESSES['base'];
 
 export const CREDITS_ABI = [
   {
@@ -26,3 +35,9 @@ export const CREDIT_SEED =
 // Convert: Number(rawBalance) / 10_000 = displayCredits
 // e.g. $5 → 5_000_000 raw → 500 display credits
 export const RAW_TO_CREDITS = 10_000;
+
+// Chain IDs for each supported chain
+export const CHAIN_IDS: Record<string, number> = {
+  base: 84532, // Base Sepolia
+  tempo: 42431, // Tempo Testnet (Moderato)
+};

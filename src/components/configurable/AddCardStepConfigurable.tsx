@@ -3,8 +3,7 @@
 import {useState} from 'react';
 import {CoinflowPurchase, SettlementType} from '@coinflowlabs/react';
 import {useEvmWallet} from '@/hooks/useEvmWallet';
-
-type Chain = 'base';
+import {Chain} from '@/hooks/useAppState';
 
 type OnSuccessArgs = {paymentId: string; hash?: string} | string;
 
@@ -140,7 +139,7 @@ function CoinflowIframe({
           wallet={wallet}
           merchantId={merchantId}
           env={env}
-          blockchain={chain}
+          blockchain={chain as any}
           settlementType={SettlementType.Credits}
           isZeroAuthorization
           zeroAuthorizationConfig={{disableSavedPaymentMethods: true}}

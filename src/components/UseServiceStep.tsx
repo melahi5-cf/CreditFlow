@@ -1,11 +1,13 @@
 'use client';
 
 import {useState} from 'react';
-import {useAccount, useSignTypedData} from 'wagmi';
+import {useAccount, useSignTypedData, useSwitchChain} from 'wagmi';
 import {ApiCall} from '@/types';
+import {CHAIN_IDS} from '@/lib/creditsContract';
 import axios from 'axios';
 
 interface UseServiceStepProps {
+  chain: string;
   balance: number;
   onUse: (credits: number, label: string) => void;
   onApiCall?: (call: Omit<ApiCall, 'id'>) => void;
@@ -64,13 +66,15 @@ const SERVICE_ACTIONS: ServiceAction[] = [
 ];
 
 export function UseServiceStep({
+  chain,
   balance,
   onUse,
   onApiCall,
   isEnabled,
 }: UseServiceStepProps) {
-  const {address} = useAccount();
+  const {address, chainId: walletChainId} = useAccount();
   const {signTypedDataAsync} = useSignTypedData();
+  const {switchChainAsync} = useSwitchChain();
   const [runningId, setRunningId] = useState<string | null>(null);
   const [justCompleted, setJustCompleted] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -84,11 +88,18 @@ export function UseServiceStep({
     const redeemPayload = {
       amountCents: action.creditCost,
       wallet: address,
-      blockchain: 'base',
+      blockchain: chain,
     };
 
     try {
-      // Step 1: Get EIP-712 auth message from Coinflow
+      // Step 1: Ensure wallet is on the correct chain before doing anything
+      // This must happen first so MetaMask has fully settled before the sign request fires
+      const requiredChainId = CHAIN_IDS[chain];
+      if (requiredChainId && walletChainId !== requiredChainId) {
+        await switchChainAsync({chainId: requiredChainId});
+      }
+
+      // Step 2: Get EIP-712 auth message from Coinflow
       onApiCall?.({
         timestamp: new Date(),
         method: 'POST',
@@ -115,7 +126,7 @@ export function UseServiceStep({
         response: JSON.stringify({validBefore, nonce, creditsRawAmount}, null, 2),
       });
 
-      // Step 2: User signs the EIP-712 permit message with their wallet
+      // Step 3: User signs the EIP-712 permit message with their wallet
       const parsed = JSON.parse(msgStr);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const {EIP712Domain: _ignored, ...typesWithoutDomain} = parsed.types ?? {};
@@ -126,7 +137,7 @@ export function UseServiceStep({
         message: parsed.message,
       });
 
-      // Step 3: Execute the gasless redeem transaction
+      // Step 4: Execute the gasless redeem transaction
       onApiCall?.({
         timestamp: new Date(),
         method: 'POST',

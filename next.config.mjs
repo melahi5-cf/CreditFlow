@@ -6,6 +6,10 @@ const nextConfig = {
       ...config.resolve.alias,
       '@react-native-async-storage/async-storage': false,
     };
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      bs58: false,
+    };
     return config;
   },
 };

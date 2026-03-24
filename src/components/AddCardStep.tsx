@@ -3,8 +3,7 @@
 import {useState} from 'react';
 import {CoinflowPurchase, SettlementType} from '@coinflowlabs/react';
 import {useEvmWallet} from '@/hooks/useEvmWallet';
-
-type Chain = 'base';
+import {Chain} from '@/hooks/useAppState';
 
 type OnSuccessArgs = {paymentId: string; hash?: string} | string;
 
@@ -123,7 +122,7 @@ function CoinflowIframe({
   onCancel,
 }: {
   wallet: ReturnType<typeof useEvmWallet>;
-  chain: Chain;
+  chain: string;
   walletAddress: string;
   onSuccess: (args: OnSuccessArgs) => void;
   onCancel: () => void;
@@ -137,7 +136,7 @@ function CoinflowIframe({
           wallet={wallet}
           merchantId={MERCHANT_ID}
           env={COINFLOW_ENV}
-          blockchain={chain}
+          blockchain={chain as any}
           settlementType={SettlementType.Credits}
           isZeroAuthorization
           zeroAuthorizationConfig={{disableSavedPaymentMethods: true}}

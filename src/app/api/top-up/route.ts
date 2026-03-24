@@ -10,7 +10,7 @@ interface TopUpRequest {
   paymentId: string;
   amountCents: number;
   wallet: string;
-  blockchain: 'base';
+  blockchain: 'base' | 'tempo';
   authentication3DS?: Record<string, unknown>;
   chargebackProtectionData?: Record<string, unknown>[];
 }
@@ -131,6 +131,9 @@ export async function POST(req: NextRequest) {
       // Forward the full Coinflow response body so the client can inspect 412 challenge data
       return NextResponse.json(responseData ?? {error: err.message}, {status});
     }
-    return NextResponse.json({error: 'Unexpected error'}, {status: 500});
+    // eslint-disable-next-line no-console
+    console.error('[Coinflow][TopUp][UnexpectedError]', err);
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({error: 'Unexpected error', detail: message}, {status: 500});
   }
 }

@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@coinflowlabs/react": "^5.8.1",
+    "@coinflowlabs/react": "file:../coinflow/lib/react",
     "@rainbow-me/rainbowkit": "^2.2.2",
     "@tanstack/react-query": "^5.62.7",
     "axios": "^1.7.9",

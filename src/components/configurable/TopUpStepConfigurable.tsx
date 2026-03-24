@@ -3,10 +3,9 @@
 import {useCallback, useEffect, useState} from 'react';
 import {CoinflowPurchase, SettlementType, Currency} from '@coinflowlabs/react';
 import {useEvmWallet} from '@/hooks/useEvmWallet';
+import {Chain} from '@/hooks/useAppState';
 import {ApiCall} from '@/types';
 import axios from 'axios';
-
-type Chain = 'base';
 
 interface TopUpStepConfigurableProps {
   chain: Chain;
@@ -336,7 +335,7 @@ export function TopUpStepConfigurable({
                   wallet={wallet}
                   merchantId={merchantId}
                   env={env}
-                  blockchain={chain}
+                  blockchain={chain as any}
                   settlementType={SettlementType.Credits}
                   subtotal={{
                     cents: selectedOption.dollars * 100,

@@ -1,11 +1,13 @@
 'use client';
 
 import {useState} from 'react';
-import {useAccount, useSignTypedData} from 'wagmi';
+import {useAccount, useSignTypedData, useSwitchChain} from 'wagmi';
 import {ApiCall} from '@/types';
+import {CHAIN_IDS} from '@/lib/creditsContract';
 import axios from 'axios';
 
 interface UseServiceStepConfigurableProps {
+  chain: string;
   balance: number;
   merchantId: string;
   apiKey: string;
@@ -68,6 +70,7 @@ const SERVICE_ACTIONS: ServiceAction[] = [
 ];
 
 export function UseServiceStepConfigurable({
+  chain,
   balance,
   merchantId,
   apiKey,
@@ -77,8 +80,9 @@ export function UseServiceStepConfigurable({
   onApiCall,
   isEnabled,
 }: UseServiceStepConfigurableProps) {
-  const {address} = useAccount();
+  const {address, chainId: walletChainId} = useAccount();
   const {signTypedDataAsync} = useSignTypedData();
+  const {switchChainAsync} = useSwitchChain();
   const [runningId, setRunningId] = useState<string | null>(null);
   const [justCompleted, setJustCompleted] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +96,7 @@ export function UseServiceStepConfigurable({
     const redeemPayloadBase = {
       amountCents: action.creditCost,
       wallet: address,
-      blockchain: 'base',
+      blockchain: chain,
       merchantId,
       apiKey,
       env,
@@ -100,7 +104,13 @@ export function UseServiceStepConfigurable({
     };
 
     try {
-      // Step 1: Get EIP-712 auth message from Coinflow
+      // Step 1: Ensure wallet is on the correct chain before doing anything
+      const requiredChainId = CHAIN_IDS[chain];
+      if (requiredChainId && walletChainId !== requiredChainId) {
+        await switchChainAsync({chainId: requiredChainId});
+      }
+
+      // Step 2: Get EIP-712 auth message from Coinflow
       onApiCall?.({
         timestamp: new Date(),
         method: 'POST',

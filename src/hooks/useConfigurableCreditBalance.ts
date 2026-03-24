@@ -2,8 +2,7 @@
 
 import {useState, useCallback} from 'react';
 import {useReadContract} from 'wagmi';
-import {baseSepolia} from 'wagmi/chains';
-import {CREDITS_ABI, RAW_TO_CREDITS} from '@/lib/creditsContract';
+import {CREDITS_ABI, RAW_TO_CREDITS, CHAIN_IDS} from '@/lib/creditsContract';
 import type {LogEntry} from './useCreditBalance';
 
 interface CreditBalanceState {
@@ -24,10 +23,12 @@ const MINT_TIMEOUT_MS = 5 * 60 * 1_000; // 5 minutes
 
 export function useConfigurableCreditBalance({
   walletAddress,
+  chain,
   creditSeed,
   creditsContractAddress,
 }: {
   walletAddress: string | undefined;
+  chain: string;
   creditSeed: string;
   creditsContractAddress: `0x${string}`;
 }): CreditBalanceState {
@@ -48,7 +49,7 @@ export function useConfigurableCreditBalance({
       walletAddress && creditSeed
         ? [walletAddress as `0x${string}`, creditSeed]
         : undefined,
-    chainId: baseSepolia.id,
+    chainId: CHAIN_IDS[chain] ?? CHAIN_IDS['base'],
     query: {
       enabled: Boolean(walletAddress && creditSeed),
       refetchInterval: 10_000,

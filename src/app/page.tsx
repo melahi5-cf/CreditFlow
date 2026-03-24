@@ -1,7 +1,7 @@
 'use client';
 
-import {useState} from 'react';
-import {useAccount} from 'wagmi';
+import {useState, useEffect} from 'react';
+import {useAccount, useSwitchChain} from 'wagmi';
 import {ConnectButton} from '@rainbow-me/rainbowkit';
 import {Header} from '@/components/Header';
 import {BalanceCard} from '@/components/BalanceCard';
@@ -10,16 +10,38 @@ import {TopUpStep} from '@/components/TopUpStep';
 import {UseServiceStep} from '@/components/UseServiceStep';
 import {useCreditBalance, LogEntry} from '@/hooks/useCreditBalance';
 import {useAppState} from '@/hooks/useAppState';
+import {Chain} from '@/hooks/useAppState';
 import {ApiCall} from '@/types';
+import {CHAIN_IDS} from '@/lib/creditsContract';
+
+const CHAIN_LABELS: Record<Chain, string> = {
+  base: 'Base Sepolia',
+  tempo: 'Tempo Testnet',
+};
 
 export default function Home() {
-  const {address, isConnected} = useAccount();
-  const creditBalance = useCreditBalance({walletAddress: address});
+  const {address, isConnected, chainId: walletChainId} = useAccount();
+  const {switchChain} = useSwitchChain();
   const appState = useAppState();
+  const creditBalance = useCreditBalance({walletAddress: address, chain: appState.chain});
   const [apiLog, setApiLog] = useState<ApiCall[]>([]);
+
+  // Keep the app's chain selector in sync with MetaMask's actual chain.
+  // This prevents mismatches when the user switches networks directly in MetaMask.
+  useEffect(() => {
+    if (walletChainId === CHAIN_IDS.base) appState.setChain('base');
+    else if (walletChainId === CHAIN_IDS.tempo) appState.setChain('tempo');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletChainId]);
 
   function onApiCall(call: Omit<ApiCall, 'id'>) {
     setApiLog(prev => [{...call, id: `${Date.now()}-${Math.random()}`}, ...prev]);
+  }
+
+  function handleChainSelect(chain: Chain) {
+    appState.setChain(chain);
+    appState.clearCard();
+    switchChain({chainId: CHAIN_IDS[chain]});
   }
 
   if (!isConnected || !address) {
@@ -37,7 +59,7 @@ export default function Home() {
               Credits Dashboard
             </h1>
             <p className="text-zinc-400 text-sm">
-              Manage your EVM credits on Base Sepolia
+              Manage your EVM credits · {CHAIN_LABELS[appState.chain]}
             </p>
           </div>
           <a
@@ -48,7 +70,26 @@ export default function Home() {
           </a>
         </div>
 
-        {/* Balance card — locked to Base Sepolia */}
+        {/* Chain selector */}
+        <div className="mb-6 flex items-center gap-2">
+          <span className="text-zinc-500 text-xs font-medium mr-1">Network:</span>
+          {(['base', 'tempo'] as Chain[]).map(chain => (
+            <button
+              key={chain}
+              onClick={() => handleChainSelect(chain)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                appState.chain === chain
+                  ? 'bg-indigo-600 border-indigo-500 text-white'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
+              }`}
+            >
+              {chain === 'tempo' && <TempoIcon />}
+              {CHAIN_LABELS[chain]}
+            </button>
+          ))}
+        </div>
+
+        {/* Balance card */}
         <BalanceCard
           balance={creditBalance.balance}
           isLoadingBalance={creditBalance.isLoadingBalance}
@@ -78,6 +119,7 @@ export default function Home() {
             isEnabled={!!appState.cardPaymentId}
           />
           <UseServiceStep
+            chain={appState.chain}
             balance={creditBalance.balance}
             onUse={(amount, label) => creditBalance.spendCredits({amount, label})}
             onApiCall={onApiCall}
@@ -92,6 +134,18 @@ export default function Home() {
         </div>
       </main>
     </div>
+  );
+}
+
+function TempoIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="14" height="14" rx="3" fill="currentColor" fillOpacity="0.2" />
+      {/* T crossbar */}
+      <rect x="2.5" y="3" width="9" height="1.8" rx="0.9" fill="currentColor" />
+      {/* T stem */}
+      <rect x="5.8" y="4.5" width="2.4" height="6.5" rx="1.2" fill="currentColor" />
+    </svg>
   );
 }
 
@@ -112,8 +166,8 @@ function LandingView() {
           </h1>
           <p className="text-zinc-400 text-lg mb-3 leading-relaxed">
             See the full credits lifecycle in action — add a card via zero
-            authorization, top up on Base Sepolia, and redeem when you use
-            the service.
+            authorization, top up on Base Sepolia or Tempo Testnet, and redeem
+            when you use the service.
           </p>
 
           {/* Flow steps */}
@@ -130,7 +184,7 @@ function LandingView() {
           </div>
 
           <p className="text-zinc-600 text-xs mt-6">
-            Base Sepolia testnet · Sandbox only · No real funds
+            Base Sepolia · Tempo Testnet · Sandbox only · No real funds
           </p>
         </div>
       </div>

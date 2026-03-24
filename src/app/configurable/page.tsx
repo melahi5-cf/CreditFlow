@@ -1,30 +1,51 @@
 'use client';
 
-import {useState} from 'react';
-import {useAccount} from 'wagmi';
+import {useState, useEffect} from 'react';
+import {useAccount, useSwitchChain} from 'wagmi';
 import {ConnectButton} from '@rainbow-me/rainbowkit';
 import {Header} from '@/components/Header';
 import {BalanceCard} from '@/components/BalanceCard';
 import {LogEntry} from '@/hooks/useCreditBalance';
 import {useAppState} from '@/hooks/useAppState';
+import {Chain} from '@/hooks/useAppState';
 import {ApiCall} from '@/types';
 import {useSandboxConfig} from '@/hooks/useSandboxConfig';
+import {CHAIN_IDS} from '@/lib/creditsContract';
 import {ConfigPanel} from '@/components/configurable/ConfigPanel';
 import {AddCardStepConfigurable} from '@/components/configurable/AddCardStepConfigurable';
 import {TopUpStepConfigurable} from '@/components/configurable/TopUpStepConfigurable';
 import {UseServiceStepConfigurable} from '@/components/configurable/UseServiceStepConfigurable';
 import {useConfigurableCreditBalance} from '@/hooks/useConfigurableCreditBalance';
 
+const CHAIN_LABELS: Record<Chain, string> = {
+  base: 'Base Sepolia',
+  tempo: 'Tempo Testnet',
+};
+
 export default function ConfigurableHome() {
-  const {address, isConnected} = useAccount();
+  const {address, isConnected, chainId: walletChainId} = useAccount();
+  const {switchChain} = useSwitchChain();
   const appState = useAppState();
   const [apiLog, setApiLog] = useState<ApiCall[]>([]);
   const {config, setConfig} = useSandboxConfig();
   const creditBalance = useConfigurableCreditBalance({
     walletAddress: address,
+    chain: appState.chain,
     creditSeed: config.creditSeed,
     creditsContractAddress: config.creditsContractAddress as `0x${string}`,
   });
+
+  useEffect(() => {
+    if (walletChainId === CHAIN_IDS.base) appState.setChain('base');
+    else if (walletChainId === CHAIN_IDS.tempo) appState.setChain('tempo');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletChainId]);
+
+  function handleChainSelect(chain: Chain) {
+    appState.setChain(chain);
+    appState.clearCard();
+    switchChain({chainId: CHAIN_IDS[chain]});
+  }
 
   function onApiCall(call: Omit<ApiCall, 'id'>) {
     setApiLog(prev => [{...call, id: `${Date.now()}-${Math.random()}`}, ...prev]);
@@ -48,6 +69,25 @@ export default function ConfigurableHome() {
             Plug in your own Coinflow sandbox merchant ID, API key, and destination
             wallet to see the full credits lifecycle with your account.
           </p>
+        </div>
+
+        {/* Chain selector */}
+        <div className="mb-6 flex items-center gap-2">
+          <span className="text-zinc-500 text-xs font-medium mr-1">Network:</span>
+          {(['base', 'tempo'] as Chain[]).map(chain => (
+            <button
+              key={chain}
+              onClick={() => handleChainSelect(chain)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                appState.chain === chain
+                  ? 'bg-indigo-600 border-indigo-500 text-white'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
+              }`}
+            >
+              {chain === 'tempo' && <TempoIcon />}
+              {CHAIN_LABELS[chain]}
+            </button>
+          ))}
         </div>
 
         <BalanceCard
@@ -83,6 +123,7 @@ export default function ConfigurableHome() {
             isEnabled={!!appState.cardPaymentId}
           />
           <UseServiceStepConfigurable
+            chain={appState.chain}
             balance={creditBalance.balance}
             merchantId={config.merchantId}
             apiKey={config.apiKey}
@@ -100,6 +141,16 @@ export default function ConfigurableHome() {
         </div>
       </main>
     </div>
+  );
+}
+
+function TempoIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="14" height="14" rx="3" fill="currentColor" fillOpacity="0.2" />
+      <rect x="2.5" y="3" width="9" height="1.8" rx="0.9" fill="currentColor" />
+      <rect x="5.8" y="4.5" width="2.4" height="6.5" rx="1.2" fill="currentColor" />
+    </svg>
   );
 }
 

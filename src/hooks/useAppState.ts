@@ -2,7 +2,7 @@
 
 import {useState, useCallback} from 'react';
 
-type Chain = 'base';
+export type Chain = 'base' | 'tempo';
 
 interface AppState {
   chain: Chain;

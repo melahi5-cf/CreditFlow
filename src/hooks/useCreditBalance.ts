@@ -2,12 +2,12 @@
 
 import {useState, useCallback} from 'react';
 import {useReadContract} from 'wagmi';
-import {baseSepolia} from 'wagmi/chains';
 import {
   CREDITS_ABI,
-  CREDITS_CONTRACT_ADDRESS,
   CREDIT_SEED,
   RAW_TO_CREDITS,
+  getCreditsContractAddress,
+  CHAIN_IDS,
 } from '@/lib/creditsContract';
 
 export interface LogEntry {
@@ -38,8 +38,10 @@ const MINT_TIMEOUT_MS = 5 * 60 * 1_000; // 5 minutes
 
 export function useCreditBalance({
   walletAddress,
+  chain,
 }: {
   walletAddress: string | undefined;
+  chain: string;
 }): CreditBalanceState {
   const [log, setLog] = useState<LogEntry[]>([]);
   // Optimistic offset: positive after top-up (before on-chain confirms),
@@ -50,16 +52,19 @@ export function useCreditBalance({
   // True if we waited the full 5 minutes without an on-chain confirmation
   const [mintTimedOut, setMintTimedOut] = useState(false);
 
+  const contractAddress = getCreditsContractAddress(chain);
+  const chainId = CHAIN_IDS[chain] ?? CHAIN_IDS['base'];
+
   const {
     data: rawBalance,
     isLoading: isLoadingBalance,
     refetch,
   } = useReadContract({
-    address: CREDITS_CONTRACT_ADDRESS,
+    address: contractAddress,
     abi: CREDITS_ABI,
     functionName: 'getCreditsBalance',
     args: walletAddress ? [walletAddress as `0x${string}`, CREDIT_SEED] : undefined,
-    chainId: baseSepolia.id,
+    chainId,
     query: {
       enabled: Boolean(walletAddress),
       refetchInterval: 10_000, // keep polling every 10 s
